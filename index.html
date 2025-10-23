@@ -40,11 +40,10 @@
   </div>
 
   <script>
-    // 👉 เปลี่ยน URL ตรงนี้เป็นของคุณ (ต้องลงท้ายด้วย /exec)
-    const scriptURL = "https://script.google.com/macros/s/AKfycbyfvDe4KbqVwFuNSzyKe6iuuT081IGtAQ-ugbrrcilhB2sP-4mDxwQNgqE6OeIbCwil/exec";
+    const scriptURL = "https://script.google.com/macros/s/AKfycbw-q7kiCbuSMNmqi_giyow7CXXhyuF9QEHy7DyOQJXt6FsF7Br2y8Lf2TBDzHPT3iU/exec";
     const status = document.getElementById("status");
 
-    document.getElementById("logForm").addEventListener("submit", async (e) => {
+    document.getElementById("logForm").addEventListener("submit", (e) => {
       e.preventDefault();
       status.textContent = "กำลังบันทึก...";
 
@@ -56,22 +55,17 @@
         note: note.value
       };
 
-      try {
-        // ✅ ใช้ iframe ส่งข้อมูลไป Google Apps Script (ไม่โดน CORS)
-        const iframe = document.createElement("iframe");
-        iframe.style.display = "none";
-        iframe.src = scriptURL + "?payload=" + encodeURIComponent(JSON.stringify(data));
-        document.body.appendChild(iframe);
-      } catch (err) {
-        status.textContent = "❌ เชื่อมต่อไม่ได้ (" + err.message + ")";
-      }
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = scriptURL + "?payload=" + encodeURIComponent(JSON.stringify(data));
+      document.body.appendChild(iframe);
     });
 
-    // ✅ รับผลลัพธ์จาก Apps Script กลับมาผ่าน postMessage
+    // ✅ ฟังเฉพาะข้อความจาก Google Script (origin)
     window.addEventListener("message", (event) => {
-      const data = event.data;
-      if (!data) return;
+      if (event.origin !== "https://script.google.com") return; // ป้องกัน spam message
 
+      const data = event.data;
       if (data.result === "success") {
         status.textContent = "✅ บันทึกเรียบร้อยแล้ว";
         document.getElementById("logForm").reset();
