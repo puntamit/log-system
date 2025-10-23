@@ -3,80 +3,152 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ระบบเก็บ Log ปัญหา</title>
+  <title>ระบบจัดการ Log ปัญหา</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
-  <div class="bg-white shadow-lg rounded-xl p-6 w-full max-w-md">
-    <h2 class="text-2xl font-bold mb-4 text-center text-gray-700">บันทึก Log ปัญหา</h2>
 
-    <form id="logForm" class="space-y-4">
-      <div>
+<body class="bg-gray-100 min-h-screen p-6">
+  <div class="max-w-4xl mx-auto bg-white shadow-lg rounded-xl p-6">
+    <h2 class="text-2xl font-bold mb-4 text-center text-gray-700">ระบบจัดการ Log ปัญหา</h2>
+
+    <!-- ฟอร์มเพิ่ม -->
+    <form id="logForm" class="grid grid-cols-2 gap-4 mb-6">
+      <div class="col-span-2">
         <label class="block mb-1 font-medium">ปัญหาที่พบ</label>
-        <input id="issue" class="w-full border p-2 rounded" required />
+        <select id="issue" class="w-full border p-2 rounded"></select>
       </div>
       <div>
         <label class="block mb-1 font-medium">Tag (เลขอุปกรณ์)</label>
         <input id="tag" class="w-full border p-2 rounded" />
       </div>
       <div>
-        <label class="block mb-1 font-medium">สถานที่ (แผนก, อาคาร, ชั้น)</label>
+        <label class="block mb-1 font-medium">สถานที่</label>
         <input id="location" class="w-full border p-2 rounded" />
       </div>
       <div>
         <label class="block mb-1 font-medium">ผู้แจ้ง</label>
-        <input id="reporter" class="w-full border p-2 rounded" />
+        <select id="reporter" class="w-full border p-2 rounded"></select>
       </div>
       <div>
         <label class="block mb-1 font-medium">หมายเหตุ</label>
-        <textarea id="note" class="w-full border p-2 rounded"></textarea>
+        <input id="note" class="w-full border p-2 rounded" />
       </div>
-      <button type="submit" class="bg-red-600 text-white w-full py-2 rounded hover:bg-blue-700">
-        บันทึกข้อมูล
+      <button type="submit" class="col-span-2 bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+        ➕ เพิ่มข้อมูล
       </button>
     </form>
+
+    <!-- ตารางข้อมูล -->
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm text-left border">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="px-4 py-2 border">เวลา</th>
+            <th class="px-4 py-2 border">ปัญหา</th>
+            <th class="px-4 py-2 border">Tag</th>
+            <th class="px-4 py-2 border">สถานที่</th>
+            <th class="px-4 py-2 border">ผู้แจ้ง</th>
+            <th class="px-4 py-2 border">หมายเหตุ</th>
+            <th class="px-4 py-2 border text-center">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="logTable"></tbody>
+      </table>
+    </div>
 
     <p id="status" class="text-center mt-3 text-sm"></p>
   </div>
 
-<script>
-  const scriptURL = "https://script.google.com/macros/s/AKfycbxQ9y2A9fkjvFeeNOka-qfFdtjQzIYNFYJug9CYa4BIX0vQvff03hHoPWWXIBZCQvCL/exec";
-  const status = document.getElementById("status");
+  <script>
+    const scriptURL = "https://script.google.com/macros/s/AKfycbyCmIFjQ3ifI8suhkT9akqzumWX20GqqnekGecToyqHobEf7JZyPB2upNG-lY655Vsy/exec";
+    const status = document.getElementById("status");
+    const tableBody = document.getElementById("logTable");
 
-  document.getElementById("logForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    status.textContent = "กำลังบันทึก...";
+    // โหลดข้อมูลเมื่อเปิดหน้า
+    window.addEventListener("DOMContentLoaded", () => {
+      loadDropdowns();
+      loadData();
+    });
 
-    const data = {
-      issue: issue.value,
-      tag: tag.value,
-      location: location.value,
-      reporter: reporter.value,
-      note: note.value
-    };
+    // โหลด dropdown (ปัญหา / ผู้แจ้ง)
+    async function loadDropdowns() {
+      const res = await fetch(`${scriptURL}?action=getDropdowns`);
+      const json = await res.json();
+      fillSelect("issue", json.issues);
+      fillSelect("reporter", json.reporters);
+    }
 
-    try {
-      const url = `${scriptURL}?payload=${encodeURIComponent(JSON.stringify(data))}`;
-      const res = await fetch(url, { method: "GET" }); // ✅ ใช้ GET ธรรมดา
-      const text = await res.text(); // 👉 รับเป็น text ก่อน
-      let json;
-      try {
-        json = JSON.parse(text); // ✅ parse เอง (กัน error ถ้าไม่ใช่ JSON แท้)
-      } catch {
-        json = { result: "error", message: "Response ไม่ใช่ JSON" };
+    function fillSelect(id, items) {
+      const select = document.getElementById(id);
+      select.innerHTML = items.map(i => `<option value="${i}">${i}</option>`).join("") +
+        `<option value="" disabled selected>เลือก...</option>`;
+    }
+
+    // โหลดข้อมูล Log ทั้งหมด
+    async function loadData() {
+      tableBody.innerHTML = "<tr><td colspan='7' class='text-center py-4'>⏳ กำลังโหลดข้อมูล...</td></tr>";
+      const res = await fetch(`${scriptURL}?action=getData`);
+      const json = await res.json();
+      renderTable(json);
+    }
+
+    // สร้างตาราง
+    function renderTable(data) {
+      if (!data || !data.length) {
+        tableBody.innerHTML = "<tr><td colspan='7' class='text-center py-4'>ไม่มีข้อมูล</td></tr>";
+        return;
       }
+      tableBody.innerHTML = data.map((r, i) => `
+        <tr class="border-b">
+          <td class="px-3 py-1">${r.timestamp}</td>
+          <td class="px-3 py-1">${r.issue}</td>
+          <td class="px-3 py-1">${r.tag}</td>
+          <td class="px-3 py-1">${r.location}</td>
+          <td class="px-3 py-1">${r.reporter}</td>
+          <td class="px-3 py-1">${r.note}</td>
+          <td class="px-3 py-1 text-center">
+            <button onclick="deleteRow(${i+1})" class="text-red-600 hover:underline">ลบ</button>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    // ลบข้อมูล
+    async function deleteRow(index) {
+      if (!confirm("ต้องการลบแถวนี้หรือไม่?")) return;
+      const res = await fetch(`${scriptURL}?action=delete&index=${index}`);
+      const json = await res.json();
+      if (json.result === "success") {
+        status.textContent = "🗑️ ลบข้อมูลเรียบร้อยแล้ว";
+        loadData();
+      } else {
+        status.textContent = "❌ ลบข้อมูลไม่สำเร็จ";
+      }
+    }
+
+    // เพิ่มข้อมูล
+    document.getElementById("logForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const data = {
+        issue: issue.value,
+        tag: tag.value,
+        location: location.value,
+        reporter: reporter.value,
+        note: note.value
+      };
+
+      const url = `${scriptURL}?action=add&payload=${encodeURIComponent(JSON.stringify(data))}`;
+      const res = await fetch(url);
+      const json = await res.json();
 
       if (json.result === "success") {
-        status.textContent = "✅ บันทึกเรียบร้อยแล้ว";
+        status.textContent = "✅ เพิ่มข้อมูลเรียบร้อยแล้ว";
         e.target.reset();
+        loadData();
       } else {
-        status.textContent = "❌ เกิดข้อผิดพลาด: " + (json.message || "ไม่ทราบสาเหตุ");
+        status.textContent = "❌ เพิ่มข้อมูลไม่สำเร็จ";
       }
-    } catch (err) {
-      status.textContent = "❌ เชื่อมต่อไม่ได้ (" + err.message + ")";
-    }
-  });
-</script>
-
+    });
+  </script>
 </body>
 </html>
