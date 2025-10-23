@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ระบบเก็บ Log ปัญหา</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div class="bg-white shadow-lg rounded-xl p-6 w-full max-w-md">
+    <h2 class="text-2xl font-bold mb-4 text-center text-gray-700">บันทึก Log ปัญหา</h2>
+    <form id="logForm" class="space-y-4">
+      <div>
+        <label class="block mb-1 font-medium">ปัญหาที่พบ</label>
+        <input id="issue" class="w-full border p-2 rounded" required />
+      </div>
+      <div>
+        <label class="block mb-1 font-medium">Tag (เลขอุปกรณ์)</label>
+        <input id="tag" class="w-full border p-2 rounded" />
+      </div>
+      <div>
+        <label class="block mb-1 font-medium">สถานที่ (แผนก, อาคาร, ชั้น)</label>
+        <input id="location" class="w-full border p-2 rounded" />
+      </div>
+      <div>
+        <label class="block mb-1 font-medium">ผู้แจ้ง</label>
+        <input id="reporter" class="w-full border p-2 rounded" />
+      </div>
+      <div>
+        <label class="block mb-1 font-medium">หมายเหตุ</label>
+        <textarea id="note" class="w-full border p-2 rounded"></textarea>
+      </div>
+      <button type="submit" class="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700">
+        บันทึกข้อมูล
+      </button>
+    </form>
+    <p id="status" class="text-center mt-3 text-sm"></p>
+  </div>
+
+  <script>
+    const scriptURL = "https://script.google.com/macros/s/AKfycbxabIPKyj9HM22mA1L1ncwsUG94FRtDasnwNhGqWboQoDKk8J4_SY1yfTGJwBiWpUM/exec"; // URL ที่ใช้ได้จาก Postman
+    const status = document.getElementById("status");
+
+    document.getElementById("logForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      status.textContent = "กำลังบันทึก...";
+      const data = {
+        issue: issue.value,
+        tag: tag.value,
+        location: location.value,
+        reporter: reporter.value,
+        note: note.value
+      };
+
+      try {
+        const res = await fetch(scriptURL, {
+          method: "POST",
+          body: JSON.stringify(data),
+          headers: { "Content-Type": "application/json" }
+        });
+        const json = await res.json();
+        if (json.result === "success") {
+          status.textContent = "✅ บันทึกเรียบร้อยแล้ว";
+          e.target.reset();
+        } else {
+          status.textContent = "❌ เกิดข้อผิดพลาด: " + (json.message || "ไม่ทราบสาเหตุ");
+        }
+      } catch (err) {
+        console.error(err);
+        status.textContent = "❌ เชื่อมต่อไม่ได้ (" + err.message + ")";
+      }
+    });
+  </script>
+</body>
+</html>
