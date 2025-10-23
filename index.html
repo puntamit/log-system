@@ -40,10 +40,10 @@
   </div>
 
   <script>
-    const scriptURL = "https://script.google.com/macros/s/AKfycbw-q7kiCbuSMNmqi_giyow7CXXhyuF9QEHy7DyOQJXt6FsF7Br2y8Lf2TBDzHPT3iU/exec";
+    const scriptURL = "https://script.google.com/macros/s/AKfycbynVkUR2Z46xJWCuk1_5vp4CMbBY7Iok6joZf7jAEfb1q54qRl_KqeuEpgWcFIh1wpR/exec";
     const status = document.getElementById("status");
 
-    document.getElementById("logForm").addEventListener("submit", (e) => {
+    document.getElementById("logForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       status.textContent = "กำลังบันทึก...";
 
@@ -55,22 +55,21 @@
         note: note.value
       };
 
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = scriptURL + "?payload=" + encodeURIComponent(JSON.stringify(data));
-      document.body.appendChild(iframe);
-    });
+      try {
+        // ✅ ใช้ GET พร้อม payload (แบบ JSONP)
+        const url = `${scriptURL}?payload=${encodeURIComponent(JSON.stringify(data))}`;
+        const res = await fetch(url);
+        const json = await res.json();
 
-    // ✅ ฟังเฉพาะข้อความจาก Google Script (origin)
-    window.addEventListener("message", (event) => {
-      if (event.origin !== "https://script.google.com") return; // ป้องกัน spam message
-
-      const data = event.data;
-      if (data.result === "success") {
-        status.textContent = "✅ บันทึกเรียบร้อยแล้ว";
-        document.getElementById("logForm").reset();
-      } else {
-        status.textContent = "❌ เกิดข้อผิดพลาด: " + (data.message || "ไม่ทราบสาเหตุ");
+        if (json.result === "success") {
+          status.textContent = "✅ บันทึกเรียบร้อยแล้ว";
+          e.target.reset();
+        } else {
+          status.textContent = "❌ เกิดข้อผิดพลาด: " + (json.message || "ไม่ทราบสาเหตุ");
+        }
+      } catch (err) {
+        console.error(err);
+        status.textContent = "❌ เชื่อมต่อไม่ได้ (" + err.message + ")";
       }
     });
   </script>
