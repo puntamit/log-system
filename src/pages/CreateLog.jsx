@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import CreatableSelect from 'react-select/creatable';
 
 export default function CreateLog(){
   const [problems, setProblems] = useState([]);
@@ -12,6 +13,18 @@ export default function CreateLog(){
     axios.get('/api/users').then(r=>setUsers(r.data)).catch(()=>{});
     axios.get('/api/locations').then(r=>setLocations(r.data)).catch(()=>{});
   },[]);
+
+  // ✅ ฟังก์ชันเพิ่มสถานที่ใหม่
+  const handleAddLocation = async (newValue) => {
+    try {
+      const newLoc = { label: newValue, building: '-', department: '-', floor: '-' };
+      const res = await axios.post('/api/locations', newLoc);
+      setLocations([...locations, res.data]);
+      setForm({ ...form, locationId: res.data.id });
+    } catch (err) {
+      alert('เพิ่มสถานที่ไม่สำเร็จ');
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -42,11 +55,18 @@ export default function CreateLog(){
       <label className="block text-sm">Tag (เลขอุปกรณ์)</label>
       <input required value={form.deviceTag} onChange={e=>setForm({...form, deviceTag:e.target.value})} className="w-full p-2 border rounded mb-2" />
 
+      {/* ✅ ส่วนสถานที่แบบพิมพ์เพิ่มได้ */}
       <label className="block text-sm">สถานที่</label>
-      <select required value={form.locationId} onChange={e=>setForm({...form, locationId:e.target.value})} className="w-full p-2 border rounded mb-2">
-        <option value="">-- เลือก --</option>
-        {locations.map(l=> <option key={l.id} value={l.id}>{l.label}</option>)}
-      </select>
+      <CreatableSelect
+        className="mb-2"
+        placeholder="เลือกหรือพิมพ์เพิ่ม..."
+        value={locations.find(l => l.id === form.locationId) ? { value: form.locationId, label: locations.find(l => l.id === form.locationId)?.label } : null}
+        onChange={(selected) => {
+          setForm({ ...form, locationId: selected ? selected.value : '' });
+        }}
+        onCreateOption={handleAddLocation}
+        options={locations.map(l => ({ value: l.id, label: l.label }))}
+      />
 
       <label className="block text-sm">ผู้แจ้ง</label>
       <select required value={form.userId} onChange={e=>setForm({...form, userId:e.target.value})} className="w-full p-2 border rounded mb-2">
